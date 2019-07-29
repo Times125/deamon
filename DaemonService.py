@@ -156,12 +156,13 @@ class FileEventHandler(FileSystemEventHandler):
 
 def event_loop():
     even_handler = FileEventHandler()
+    event = threading.Event()
     observer = Observer()
     observer.schedule(even_handler, os.path.curdir, recursive=True)
     observer.start()
     try:
         while True:
-            time.sleep(1)
+            event.wait(1)
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
