@@ -1,0 +1,20 @@
+#################### 重要说明 ############################
+# 守护程序会在指定的directory目录下生成一个 "程序名.pid"的文件，此文件
+# 为判断程序是否存活的依据，不要修改、移动此文件。
+#########################################################
+
+# process settings
+demo: # 程序名
+  directory: 'D:/Repositories/deamon' # 程序工作目录
+  logfile: 'D:/Repositories/deamon/demo.out' # 程序输出到日志路径
+  cmdline: 'E:\Anaconda3\envs\tensorflow\python demo.py' # 程序启动命令行
+  retries:  -1 # 程序失败重启次数，默认为 -1，表示不限制重启次数
+
+# demo2 settings
+demo2: # 程序名
+  directory: 'D:/Repositories/deamon' # 脚本工作目录
+  logfile: 'D:/Repositories/deamon/demo2.out' # 程序输出到日志路径
+  cmdline: 'python demo2.py' # 程序启动命令行
+  retries:  5 # 程序失败重启次数，默认为 -1，表示不限制重启次数
+
+
