@@ -76,7 +76,7 @@ class DaemonService(object):
             try:
                 directory = attrs.get('directory', '').replace(os.sep, '/')
                 cmdline = [i for i in attrs.get('cmdline', '').replace(os.sep, '/').split() if i]
-                retires = attrs.get('retries', -1)
+                retires = int(attrs.get('retries', -1))
                 logfile = attrs.get('logfile', '').replace(os.sep, '/')
                 pid_file = os.path.join(directory, name + '.pid')
                 if os.path.isfile(pid_file):
