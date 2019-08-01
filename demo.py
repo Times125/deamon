@@ -10,8 +10,8 @@ import time
 
 count = 1
 while 1:
-    if count > 100:
+    if count > 2:
         break
     count += 1
     print('test demo1')
-    time.sleep(3)
+    time.sleep(0.5)

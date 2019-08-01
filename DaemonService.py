@@ -18,8 +18,8 @@ from watchdog.events import *
 from watchdog.observers import Observer
 from logger import daemon_logger
 
-# 每10秒检查一下程序是否正常运行
-check_interval = 10
+# 每30秒检查一下程序是否正常运行
+check_interval = 3
 
 
 def load_config():
@@ -38,10 +38,9 @@ class DaemonService(object):
     def __init__(self):
         self.cf = load_config()
         self.info = None
-        self.is_reload_config = False  # 暂时没什么用
+        self.is_first_start = True  # 守护进程是否是第一次启动
 
-    @classmethod
-    def start_program(cls, name, directory, cmdline, pid_file, logfile, left_time):
+    def start_program(self, name, directory, cmdline, pid_file, logfile, left_time):
         """
         启动程序
         :param name:程序名
@@ -58,7 +57,7 @@ class DaemonService(object):
         try:
             with open(logfile, 'wb') as fp:  # subprocess.DEVNULL
                 s = subprocess.Popen(cmdline, cwd=directory, stdout=fp.fileno(), stderr=fp.fileno())
-            daemon_logger.info('########### 程序 {} 启动成功，pid为{} ###########'.format(name, s.pid))
+                self.check_success(s, name=name)
         except (OSError, FileNotFoundError) as e:
             daemon_logger.error('启动程序 {} 失败, 请检查配置是否正确'.format(name))
             daemon_logger.exception(e)
@@ -79,6 +78,9 @@ class DaemonService(object):
                 retires = int(attrs.get('retries', -1))
                 logfile = attrs.get('logfile', '').replace(os.sep, '/')
                 pid_file = os.path.join(directory, name + '.pid')
+                if self.is_first_start:
+                    if os.path.isfile(pid_file):
+                        os.remove(pid_file)
                 if os.path.isfile(pid_file):
                     with open(pid_file, 'r+') as fp:
                         self.info = json.load(fp)  # 加载程序的pid文件
@@ -91,14 +93,23 @@ class DaemonService(object):
                             self.info['left_time'] = retires
                         if self.info['left_time'] > 0 and not self.is_running():  # 检查剩余失败重启次数
                             self.start_program(name, directory, cmdline, pid_file, logfile, self.info['left_time'])
-                # TODO 这里存在一个问题，如果移动或者删除pid文件后，将会启动新的程序副本（原来的程序并没有退出）
                 else:
                     self.start_program(name, directory, cmdline, pid_file, logfile, retires)
             except Exception as e:
                 daemon_logger.exception(e)
+        self.is_first_start = False
 
-    def supervisor2(self):
-        pass
+    def check_success(self, s, name):
+        count = 100
+        while True:
+            if s.poll() == 0:
+                daemon_logger.warn('########### 程序 {} 启动失败  ###########'.format(name))
+                break
+            elif count == 0:
+                daemon_logger.info('########### 程序 {} 启动成功，pid为{} ###########'.format(name, s.pid))
+                break
+            count -= 1
+            time.sleep(0.1)
 
     def is_running(self):
         """
@@ -107,7 +118,6 @@ class DaemonService(object):
         """
         if psutil.pid_exists(self.info['pid']):
             p = psutil.Process(self.info['pid'])
-            # print(p.cmdline(),'===',self.info['cmdline'])
             if operator.eq(p.cmdline(), self.info['cmdline']):
                 return True
         else:
@@ -118,7 +128,7 @@ class DaemonService(object):
         重新载入配置文件
         :return:
         """
-        self.is_reload_config = True
+        self.is_first_start = True
         self.cf = load_config()
 
     @classmethod
@@ -151,6 +161,7 @@ class FileEventHandler(FileSystemEventHandler):
             pass
         else:
             if event.src_path.endswith('sys_config.yaml'):
+                daemon_logger.info('配置文件发生变化')
                 service.reload_config()
 
 
